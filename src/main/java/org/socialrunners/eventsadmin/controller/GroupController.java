@@ -19,7 +19,7 @@ public class GroupController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Group> getCashCard(@PathVariable long id) {
+    public ResponseEntity<Group> getGroup(@PathVariable long id) {
         if (id == 99) {
             return ResponseEntity.ok(new Group(99, "NYC Runners"));
         }
