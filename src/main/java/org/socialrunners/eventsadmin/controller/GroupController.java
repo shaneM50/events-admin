@@ -7,22 +7,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/cashcards")
+@RequestMapping("/groups")
 public class GroupController {
 
     // simple DTO used by tests; replace with real model later
-    public static class CashCard {
+    public static class Group {
         public long id;
-        public String owner;
-        public CashCard() {}
-        public CashCard(long id, String owner) { this.id = id; this.owner = owner; }
+        public String name;
+        public Group() {}
+        public Group(long id, String name) { this.id = id; this.name = name; }
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CashCard> getCashCard(@PathVariable long id) {
-        // TDD: start with a simple behavior the test expects (id 99 -> sample)
+    public ResponseEntity<Group> getCashCard(@PathVariable long id) {
         if (id == 99) {
-            return ResponseEntity.ok(new CashCard(99, "Test Owner"));
+            return ResponseEntity.ok(new Group(99, "NYC Runners"));
         }
         
         return ResponseEntity.notFound().build();

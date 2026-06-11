@@ -16,16 +16,16 @@ class GroupControllerTest {
 
     @Test
     void shouldReturnCashcard99() throws Exception {
-        mvc.perform(get("/cashcards/99"))
+        mvc.perform(get("/groups/99"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.id").isNotEmpty())
-            .andExpect(jsonPath("$.owner").isNotEmpty());
+            .andExpect(jsonPath("$.id").value(99))
+            .andExpect(jsonPath("$.name").value("NYC Runners"));
     }
 
 
     @Test
     void shouldReturnNotFoundForOtherId() throws Exception {
-        mvc.perform(get("/cashcards/1"))
+        mvc.perform(get("/groups/1"))
            .andExpect(status().isNotFound());
     }
 }
