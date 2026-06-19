@@ -4,9 +4,11 @@ import java.net.URI;
 import org.socialrunners.eventsadmin.model.Group;
 import org.socialrunners.eventsadmin.repository.GroupRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.*;
 import jakarta.validation.Valid;
+
 
 
 @RestController
@@ -43,6 +45,7 @@ public class GroupController {
         return ResponseEntity.ok(groupsPage);
     }
 
+    @PreAuthorize("hasRole('GROUP_ADMIN')")
     @PostMapping
     public ResponseEntity<Group> createGroup(@Valid @RequestBody Group group) {
         Group saved = groupRepository.save(group);

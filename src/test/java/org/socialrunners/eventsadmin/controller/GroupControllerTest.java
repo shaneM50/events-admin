@@ -4,11 +4,13 @@ import java.util.List;
 
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
+import org.socialrunners.eventsadmin.config.TestSecurityConfig;
 import org.socialrunners.eventsadmin.model.Group;
 import org.socialrunners.eventsadmin.repository.GroupRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.data.domain.*;
 import org.springframework.test.web.servlet.MockMvc;
@@ -23,6 +25,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.Optional;
 
 @WebMvcTest(GroupController.class)
+@Import(TestSecurityConfig.class)
+/**
+ * Controller slice tests for GroupController.
+ *
+ * These tests focus on controller behavior (status codes, JSON, paging, validation)
+ * and deliberately ignore security concerns. TestSecurityConfig overrides the real
+ * SecurityConfig to permit all requests at the HTTP layer, so we don't need an
+ * authenticated user or IdP setup in this test slice.
+ *
+ * Security rules (roles, forbidden/allowed) are covered separately.
+ */
 class GroupControllerTest {
 
     @Autowired
