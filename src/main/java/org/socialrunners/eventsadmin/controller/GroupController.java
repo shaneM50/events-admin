@@ -1,18 +1,13 @@
 package org.socialrunners.eventsadmin.controller;
 
 import java.net.URI;
-
 import org.socialrunners.eventsadmin.model.Group;
 import org.socialrunners.eventsadmin.repository.GroupRepository;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.*;
 import jakarta.validation.Valid;
+
 
 @RestController
 @RequestMapping("/groups")
@@ -29,6 +24,23 @@ public class GroupController {
         return groupRepository.findById(id)
             .map(ResponseEntity::ok)               
             .orElseGet(() -> ResponseEntity.notFound().build()); 
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<Group>> getGroups(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String direction) {
+
+        Sort sort = direction.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<Group> groupsPage = groupRepository.findAll(pageable);
+
+        return ResponseEntity.ok(groupsPage);
     }
 
     @PostMapping
