@@ -1,5 +1,6 @@
 package org.socialrunners.eventsadmin.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -18,17 +19,18 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    /**
-     * HTTP security configuration.
-     *
-     * - Allows unauthenticated GETs to /groups/** (public read).
-     * - Requires authentication for POST /groups/**.
-     * - Uses HTTP Basic auth for development so we can easily test
-     *   credentials with tools like MockMvc and Postman.
-     *
-     * Method-level rules (@PreAuthorize) still apply on top of this
-     * (e.g. only GROUP_ADMIN can create groups).
-     */
+    @Value("${security.group-admin.username:group_admin}")
+    private String groupAdminUsername;
+
+    @Value("${security.group-admin.password:group_admin}")
+    private String groupAdminPassword;
+
+    @Value("${security.group-organizer.username:group_organizer}")
+    private String groupOrganizerUsername;
+
+    @Value("${security.group-organizer.password:group_organizer}")
+    private String groupOrganizerPassword;
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -36,55 +38,48 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.GET, "/groups/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/groups/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/groups/**").authenticated()
                 .requestMatchers(HttpMethod.PUT, "/groups/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/groups/**").authenticated()
             )
-            .httpBasic(Customizer.withDefaults()); // Basic Auth for dev/testing
+            .httpBasic(Customizer.withDefaults());
 
         return http.build();
     }
 
     /**
-     * In-memory users for local development and tests.
+     * In-memory users for dev/test, with credentials configurable via env vars
+     * or Spring properties:
      *
-     * This avoids having to set up a real user store or IdP while we build
-     * out the API. Credentials are:
-     *  - group_admin / group_admin   → role GROUP_ADMIN
-     *  - group_organizer / group_organizer → role GROUP_USER
+     *  - security.group-admin.username / password
+     *  - security.group-organizer.username / password
      *
-     * These users are used by:
-     *  - HTTP Basic auth when calling the API directly (e.g. via Postman),
-     *  - @WithMockUser-based tests that assert role behavior.
-     *
-     * In a real environment, this should be replaced with a proper user
-     * directory or external IdP.
+     * Defaults:
+     *  - group_admin / group_admin
+     *  - group_organizer / group_organizer
      */
     @Bean
-    UserDetailsService userDetailsService() {
-        UserDetails groupAdmin = User.withUsername("group_admin")
-                .password("{noop}group_admin")      
+    UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
+        UserDetails groupAdmin = User.withUsername(groupAdminUsername)
+                .password(passwordEncoder.encode(groupAdminPassword))
                 .roles("GROUP_ADMIN")
                 .build();
 
-        UserDetails groupOrganizer = User.withUsername("group_organizer")
-                .password("{noop}group_organizer")  
+        UserDetails groupOrganizer = User.withUsername(groupOrganizerUsername)
+                .password(passwordEncoder.encode(groupOrganizerPassword))
                 .roles("GROUP_ORGANIZER")
                 .build();
 
         return new InMemoryUserDetailsManager(groupAdmin, groupOrganizer);
     }
 
-
     /**
-     * Password encoder for dev-only in-memory users.
-     *
-     * Uses a DelegatingPasswordEncoder with {noop} for our test users so we
-     * avoid the deprecated NoOpPasswordEncoder but still have simple plaintext
-     * passwords in dev. In production, switch to strong encoders like bcrypt.
+     * Delegating password encoder with sensible defaults.
+     * For our simple in-memory users, we just encode whatever password
+     * is provided (dev/test only). For production, replace this with a
+     * stronger, well-configured encoder.
      */
     @Bean
     PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
-
 }
