@@ -18,6 +18,8 @@ import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.Optional;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 class GroupSecurityIT {
@@ -168,4 +170,94 @@ class GroupSecurityIT {
                 .with(httpBasic("wrong", "creds")))
         .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    @WithMockUser(roles = "GROUP_ADMIN")
+    void putGroup_shouldReturnOkForGroupAdmin() throws Exception {
+        long id = 42L;
+        Group updated = new Group("Updated Name");
+        Group saved = new Group("Updated Name");
+        String body = objectMapper.writeValueAsString(updated);
+
+        given(groupRepository.findById(id)).willReturn(Optional.of(new Group("Old Name")));
+        given(groupRepository.save(any(Group.class))).willReturn(saved);
+
+        mvc.perform(put("/groups/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+           .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "GROUP_ORGANIZER")
+    void putGroup_shouldReturnForbiddenForNonAdmin() throws Exception {
+        long id = 42L;
+        Group updated = new Group("Updated Name");
+        String body = objectMapper.writeValueAsString(updated);
+
+        given(groupRepository.findById(id)).willReturn(Optional.of(new Group("Old Name")));
+
+        mvc.perform(put("/groups/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void putGroup_shouldReturnUnauthorizedForAnonymous() throws Exception {
+        long id = 42L;
+        Group updated = new Group("Updated Name");
+        String body = objectMapper.writeValueAsString(updated);
+
+        mvc.perform(put("/groups/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+           .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void putGroup_withGroupAdminBasicAuth_shouldReturnOk() throws Exception {
+        long id = 42L;
+        Group updated = new Group("Updated Name");
+        Group saved = new Group("Updated Name");
+        String body = objectMapper.writeValueAsString(updated);
+
+        given(groupRepository.findById(id)).willReturn(Optional.of(new Group("Old Name")));
+        given(groupRepository.save(any(Group.class))).willReturn(saved);
+
+        mvc.perform(put("/groups/{id}", id)
+                .with(httpBasic("group_admin", "group_admin"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+           .andExpect(status().isOk());
+    }
+
+    @Test
+    void putGroup_withGroupOrganizerBasicAuth_shouldReturnForbidden() throws Exception {
+        long id = 42L;
+        Group updated = new Group("Updated Name");
+        String body = objectMapper.writeValueAsString(updated);
+
+        given(groupRepository.findById(id)).willReturn(Optional.of(new Group("Old Name")));
+
+        mvc.perform(put("/groups/{id}", id)
+                .with(httpBasic("group_organizer", "group_organizer"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void putGroup_withInvalidBasicAuth_shouldReturnUnauthorized() throws Exception {
+        long id = 42L;
+        Group updated = new Group("Updated Name");
+        String body = objectMapper.writeValueAsString(updated);
+
+        mvc.perform(put("/groups/{id}", id)
+                .with(httpBasic("wrong", "creds"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+           .andExpect(status().isUnauthorized());
+    }
+
 }

@@ -193,5 +193,37 @@ class GroupControllerTest {
            .andExpect(status().isNotFound());
     }
 
+    @Test
+    void shouldUpdateExistingGroupAndReturnOk() throws Exception {
+        long id = 99L;
+        Group existing = new Group("Old Name");
+        Group updated = new Group("New Name");
+
+        String updateJson = objectMapper.writeValueAsString(updated);
+
+        given(groupRepository.findById(id)).willReturn(Optional.of(existing));
+        given(groupRepository.save(any(Group.class))).willReturn(updated);
+
+        mvc.perform(put("/groups/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateJson))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.name").value(updated.getName()));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenUpdatingNonExistingGroup() throws Exception {
+        long id = 123L;
+        Group updated = new Group("New Name");
+        String updateJson = objectMapper.writeValueAsString(updated);
+
+        given(groupRepository.findById(id)).willReturn(Optional.empty());
+
+        mvc.perform(put("/groups/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateJson))
+           .andExpect(status().isNotFound());
+    }
+
 }
 

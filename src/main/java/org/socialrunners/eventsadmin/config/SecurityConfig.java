@@ -37,7 +37,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/groups/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/groups/**").authenticated()
                 .requestMatchers(HttpMethod.DELETE, "/groups/**").authenticated()
-                .anyRequest().permitAll()
+                .requestMatchers(HttpMethod.PUT, "/groups/**").authenticated()
             )
             .httpBasic(Customizer.withDefaults()); // Basic Auth for dev/testing
 

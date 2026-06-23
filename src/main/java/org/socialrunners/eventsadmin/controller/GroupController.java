@@ -67,4 +67,17 @@ public class GroupController {
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasRole('GROUP_ADMIN')")
+    @PutMapping("/{id}")
+    public ResponseEntity<Group> updateGroup(@PathVariable long id,
+                                             @Valid @RequestBody Group updatedGroup) {
+        return groupRepository.findById(id)
+                .map(existing -> {
+                    existing.setName(updatedGroup.getName());
+                    Group saved = groupRepository.save(existing);
+                    return ResponseEntity.ok(saved);
+                })
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
 }
