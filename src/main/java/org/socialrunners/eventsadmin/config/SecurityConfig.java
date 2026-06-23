@@ -36,6 +36,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.GET, "/groups/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/groups/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/groups/**").authenticated()
                 .anyRequest().permitAll()
             )
             .httpBasic(Customizer.withDefaults()); // Basic Auth for dev/testing
@@ -67,7 +68,7 @@ public class SecurityConfig {
 
         UserDetails groupOrganizer = User.withUsername("group_organizer")
                 .password("{noop}group_organizer")  
-                .roles("GROUP_USER")
+                .roles("GROUP_ORGANIZER")
                 .build();
 
         return new InMemoryUserDetailsManager(groupAdmin, groupOrganizer);

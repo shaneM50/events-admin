@@ -56,4 +56,15 @@ public class GroupController {
                 .body(saved);    
     }
 
+    @PreAuthorize("hasRole('GROUP_ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteGroup(@PathVariable long id) {
+        if (!groupRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        groupRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
 }

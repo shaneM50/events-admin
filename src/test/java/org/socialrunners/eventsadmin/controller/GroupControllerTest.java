@@ -173,5 +173,25 @@ class GroupControllerTest {
             .andExpect(jsonPath("$.totalElements").value(0));
     }
 
+    @Test
+    void shouldDeleteExistingGroupAndReturnNoContent() throws Exception {
+        long id = 99L;
+
+        given(groupRepository.existsById(id)).willReturn(true);
+
+        mvc.perform(delete("/groups/{id}", id))
+           .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenDeletingNonExistingGroup() throws Exception {
+        long id = 123L;
+
+        given(groupRepository.existsById(id)).willReturn(false);
+
+        mvc.perform(delete("/groups/{id}", id))
+           .andExpect(status().isNotFound());
+    }
+
 }
 

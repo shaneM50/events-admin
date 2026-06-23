@@ -15,7 +15,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -69,7 +69,7 @@ class GroupSecurityIT {
             .andExpect(status().isUnauthorized());
     }
 
-        @Test
+    @Test
     void postGroups_withGroupAdminBasicAuth_shouldReturnCreated() throws Exception {
         Group newGroup = new Group("NYC Runners");
         Group savedGroup = new Group("NYC Runners");
@@ -106,5 +106,66 @@ class GroupSecurityIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(roles = "GROUP_ADMIN")
+    void deleteGroup_shouldReturnNoContentForGroupAdmin() throws Exception {
+        long id = 42L;
+        given(groupRepository.existsById(id)).willReturn(true);
+
+        mvc.perform(delete("/groups/{id}", id))
+        .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(roles = "GROUP_ORGANIZER")
+    void deleteGroup_shouldReturnForbiddenForNonAdmin() throws Exception {
+        long id = 42L;
+        given(groupRepository.existsById(id)).willReturn(true);
+
+        mvc.perform(delete("/groups/{id}", id))
+        .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleteGroup_shouldReturnUnauthorizedForAnonymous() throws Exception {
+        long id = 42L;
+        // No need to stub existsById here: request never reaches controller when unauthorized.
+
+        mvc.perform(delete("/groups/{id}", id))
+        .andExpect(status().isUnauthorized());
+    }
+
+    // Basic Auth tests
+
+    @Test
+    void deleteGroup_withGroupAdminBasicAuth_shouldReturnNoContent() throws Exception {
+        long id = 42L;
+        given(groupRepository.existsById(id)).willReturn(true);
+
+        mvc.perform(delete("/groups/{id}", id)
+                .with(httpBasic("group_admin", "group_admin")))
+        .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deleteGroup_withGroupOrganizerBasicAuth_shouldReturnForbidden() throws Exception {
+        long id = 42L;
+        given(groupRepository.existsById(id)).willReturn(true);
+
+        mvc.perform(delete("/groups/{id}", id)
+                .with(httpBasic("group_organizer", "group_organizer")))
+        .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleteGroup_withInvalidBasicAuth_shouldReturnUnauthorized() throws Exception {
+        long id = 42L;
+        // No need to stub existsById: unauthorized at HTTP layer.
+
+        mvc.perform(delete("/groups/{id}", id)
+                .with(httpBasic("wrong", "creds")))
+        .andExpect(status().isUnauthorized());
     }
 }
