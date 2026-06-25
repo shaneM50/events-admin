@@ -1,6 +1,8 @@
 package org.socialrunners.eventsadmin.controller;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
@@ -11,21 +13,23 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
-import org.springframework.data.domain.*;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import java.util.Optional;
-
-@WebMvcTest(GroupController.class)
-@Import(TestSecurityConfig.class)
 /**
  * Controller slice tests for GroupController.
  *
@@ -36,6 +40,8 @@ import java.util.Optional;
  *
  * Security rules (roles, forbidden/allowed) are covered separately.
  */
+@WebMvcTest(GroupController.class)
+@Import(TestSecurityConfig.class)
 class GroupControllerTest {
 
     @Autowired
@@ -47,94 +53,122 @@ class GroupControllerTest {
     @MockBean
     GroupRepository groupRepository;
 
+    private ResultActions doGet(String url) throws Exception {
+        return doGet(url, null);
+    }
+
+    private ResultActions doGet(String url, Map<String, String> params) throws Exception {
+        MockHttpServletRequestBuilder request = get(url);
+
+        if (params != null && !params.isEmpty()) {
+            for (Map.Entry<String, String> entry : params.entrySet()) {
+                request = request.param(entry.getKey(), entry.getValue());
+            }
+        }
+
+        return mvc.perform(request);
+    }
+
+    private PageRequest pageableFromParams(Map<String, String> params) {
+        int page = Integer.parseInt(params.getOrDefault("page", "0"));
+        int size = Integer.parseInt(params.getOrDefault("size", "10"));
+        String sortBy = params.getOrDefault("sortBy", "name");
+        String direction = params.getOrDefault("direction", "asc");
+
+        Sort sort = "desc".equalsIgnoreCase(direction)
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        return PageRequest.of(page, size, sort);
+    }
+
     @Test
     void shouldReturnOkWhenGroupFound() throws Exception {
         Group group = new Group("NYC Runners");
         given(groupRepository.findById(99L)).willReturn(Optional.of(group));
 
-        mvc.perform(get("/groups/99"))
-           .andExpect(status().isOk())
-           .andExpect(jsonPath("$.name").value("NYC Runners"));
+        doGet("/groups/99")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("NYC Runners"));
     }
 
     @Test
     void shouldReturnNotFoundWhenNoGroupFound() throws Exception {
         given(groupRepository.findById(1L)).willReturn(Optional.empty());
 
-        mvc.perform(get("/groups/1"))
-           .andExpect(status().isNotFound());
+        doGet("/groups/1")
+                .andExpect(status().isNotFound());
     }
 
     @Test
     void shouldCreateGroupAndReturnCreated() throws Exception {
-        Group newGroup = new Group("NYC Runners"); 
+        Group newGroup = new Group("NYC Runners");
         String newGroupJson = objectMapper.writeValueAsString(newGroup);
 
         given(groupRepository.save(any(Group.class))).willReturn(newGroup);
 
         mvc.perform(post("/groups")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(newGroupJson))
-            .andExpect(status().isCreated())
-            .andExpect(header().string("Location", Matchers.containsString("/groups/")))
-            .andExpect(jsonPath("$.name").value("NYC Runners"));
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newGroupJson))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", Matchers.containsString("/groups/")))
+                .andExpect(jsonPath("$.name").value("NYC Runners"));
     }
 
     @Test
     void shouldReturnBadRequestWhenNameMissing() throws Exception {
-        Group newGroup = new Group(""); 
+        Group newGroup = new Group("");
         String newGroupJson = objectMapper.writeValueAsString(newGroup);
 
         given(groupRepository.save(any(Group.class))).willReturn(newGroup);
 
         mvc.perform(post("/groups")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(newGroupJson))
-            .andExpect(status().isBadRequest());    
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newGroupJson))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     void shouldReturnBadRequestWhenJsonInvalid() throws Exception {
-        String invalidJson = "{ name: NYC Runners "; 
+        String invalidJson = "{ name: NYC Runners ";
 
         mvc.perform(post("/groups")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(invalidJson))
-            .andExpect(status().isBadRequest());
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     void shouldUseDefaultPagingAndSortingWhenNoParams() throws Exception {
-        PageRequest defaultPageable = PageRequest.of(
-            0, 
-            10, 
-            Sort.by("name")
-            .ascending());
+        Map<String, String> params = Map.of(); // no params -> controller defaults
+        PageRequest defaultPageable = pageableFromParams(params);
 
         Group g1 = new Group("Alpha Runners");
         Group g2 = new Group("Zeta Runners");
 
         PageImpl<Group> pageResult = new PageImpl<>(List.of(g1, g2), defaultPageable, 2);
-        
+
         given(groupRepository.findAll(defaultPageable)).willReturn(pageResult);
 
-        mvc.perform(get("/groups"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.content[0].name").value("Alpha Runners"))
-            .andExpect(jsonPath("$.content[1].name").value("Zeta Runners"))
-            .andExpect(jsonPath("$.number").value(0))
-            .andExpect(jsonPath("$.size").value(10))
-            .andExpect(jsonPath("$.totalElements").value(2));
+        doGet("/groups")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].name").value("Alpha Runners"))
+                .andExpect(jsonPath("$.content[1].name").value("Zeta Runners"))
+                .andExpect(jsonPath("$.number").value(0))
+                .andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.totalElements").value(2));
     }
 
     @Test
     void shouldApplyAllNonDefaultRequestParamsToPageable() throws Exception {
-        int page = 2;          
-        int size = 5;          
-        String sortBy = "name";
-        String direction = "desc";
+        Map<String, String> params = Map.of(
+                "page", "2",
+                "size", "5",
+                "sortBy", "name",
+                "direction", "desc"
+        );
 
-        PageRequest pageable = PageRequest.of(page, size, Sort.by(sortBy).descending());
+        PageRequest pageable = pageableFromParams(params);
 
         Group g1 = new Group("Zeta Runners");
         Group g2 = new Group("Alpha Runners");
@@ -142,35 +176,31 @@ class GroupControllerTest {
 
         given(groupRepository.findAll(pageable)).willReturn(pageResult);
 
-        mvc.perform(get("/groups")
-                .param("page", String.valueOf(page))
-                .param("size", String.valueOf(size))
-                .param("sortBy", sortBy)
-                .param("direction", direction))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.number").value(page))
-            .andExpect(jsonPath("$.size").value(size))
-            .andExpect(jsonPath("$.totalElements").value(12))
-            .andExpect(jsonPath("$.content[0].name").value("Zeta Runners"))
-            .andExpect(jsonPath("$.content[1].name").value("Alpha Runners"));
+        doGet("/groups", params)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.number").value(2))
+                .andExpect(jsonPath("$.size").value(5))
+                .andExpect(jsonPath("$.totalElements").value(12))
+                .andExpect(jsonPath("$.content[0].name").value("Zeta Runners"))
+                .andExpect(jsonPath("$.content[1].name").value("Alpha Runners"));
     }
 
     @Test
     void shouldReturnEmptyPageWhenNoGroups() throws Exception {
-        int page = 0;
-        int size = 10;
-        PageRequest pageable = PageRequest.of(page, size, Sort.by("name").ascending());
+        Map<String, String> params = Map.of(
+                "page", "0",
+                "size", "10"
+        );
+        PageRequest pageable = pageableFromParams(params);
         PageImpl<Group> emptyPage = new PageImpl<>(List.of(), pageable, 0);
 
         given(groupRepository.findAll(pageable)).willReturn(emptyPage);
 
-        mvc.perform(get("/groups")
-                .param("page", String.valueOf(page))
-                .param("size", String.valueOf(size)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.content").isArray())
-            .andExpect(jsonPath("$.content").isEmpty())
-            .andExpect(jsonPath("$.totalElements").value(0));
+        doGet("/groups", params)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test
@@ -180,7 +210,9 @@ class GroupControllerTest {
         given(groupRepository.existsById(id)).willReturn(true);
 
         mvc.perform(delete("/groups/{id}", id))
-           .andExpect(status().isNoContent());
+                .andExpect(status().isNoContent());
+
+        then(groupRepository).should().deleteById(id);
     }
 
     @Test
@@ -190,7 +222,9 @@ class GroupControllerTest {
         given(groupRepository.existsById(id)).willReturn(false);
 
         mvc.perform(delete("/groups/{id}", id))
-           .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound());
+
+        then(groupRepository).should(never()).deleteById(id);
     }
 
     @Test
@@ -205,10 +239,10 @@ class GroupControllerTest {
         given(groupRepository.save(any(Group.class))).willReturn(updated);
 
         mvc.perform(put("/groups/{id}", id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(updateJson))
-           .andExpect(status().isOk())
-           .andExpect(jsonPath("$.name").value(updated.getName()));
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value(updated.getName()));
     }
 
     @Test
@@ -220,10 +254,8 @@ class GroupControllerTest {
         given(groupRepository.findById(id)).willReturn(Optional.empty());
 
         mvc.perform(put("/groups/{id}", id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(updateJson))
-           .andExpect(status().isNotFound());
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateJson))
+                .andExpect(status().isNotFound());
     }
-
 }
-

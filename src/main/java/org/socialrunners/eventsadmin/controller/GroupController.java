@@ -9,8 +9,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.*;
 import jakarta.validation.Valid;
 
-
-
 @RestController
 @RequestMapping("/groups")
 public class GroupController {
