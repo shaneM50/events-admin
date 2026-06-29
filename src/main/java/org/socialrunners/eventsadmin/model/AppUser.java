@@ -11,21 +11,24 @@ public class AppUser {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false, length = 100)
     private String username;
 
-    @Column(nullable = false)
-    private String password; // encoded
+    @Column(nullable = false, length = 255)
+    private String password;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "role")
-    private Set<String> roles;
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "user_roles",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles;
 
-    public AppUser() {
+    protected AppUser() {
     }
 
-    public AppUser(String username, String password, Set<String> roles) {
+    public AppUser(String username, String password, Set<Role> roles) {
         this.username = username;
         this.password = password;
         this.roles = roles;
@@ -51,11 +54,11 @@ public class AppUser {
         this.password = password;
     }
 
-    public Set<String> getRoles() {
+    public Set<Role> getRoles() {
         return roles;
     }
 
-    public void setRoles(Set<String> roles) {
+    public void setRoles(Set<Role> roles) {
         this.roles = roles;
     }
 }
