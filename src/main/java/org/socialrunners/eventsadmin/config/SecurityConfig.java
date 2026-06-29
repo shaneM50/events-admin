@@ -1,6 +1,7 @@
 package org.socialrunners.eventsadmin.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.socialrunners.eventsadmin.model.AppUser;
+import org.socialrunners.eventsadmin.repository.AppUserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -8,28 +9,15 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
-
-    @Value("${security.group-admin.username:group_admin}")
-    private String groupAdminUsername;
-
-    @Value("${security.group-admin.password:group_admin}")
-    private String groupAdminPassword;
-
-    @Value("${security.group-organizer.username:group_organizer}")
-    private String groupOrganizerUsername;
-
-    @Value("${security.group-organizer.password:group_organizer}")
-    private String groupOrganizerPassword;
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -46,38 +34,23 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * In-memory users for dev/test, with credentials configurable via env vars
-     * or Spring properties:
-     *
-     *  - security.group-admin.username / password
-     *  - security.group-organizer.username / password
-     *
-     * Defaults:
-     *  - group_admin / group_admin
-     *  - group_organizer / group_organizer
-     */
     @Bean
-    UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-        UserDetails groupAdmin = User.withUsername(groupAdminUsername)
-                .password(passwordEncoder.encode(groupAdminPassword))
-                .roles("GROUP_ADMIN")
-                .build();
+    UserDetailsService userDetailsService(AppUserRepository userRepository) {
+        return username -> {
+            AppUser appUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        UserDetails groupOrganizer = User.withUsername(groupOrganizerUsername)
-                .password(passwordEncoder.encode(groupOrganizerPassword))
-                .roles("GROUP_ORGANIZER")
-                .build();
+            String[] roleNames = appUser.getRoles().stream()
+                .map(role -> role.getName())
+                .toArray(String[]::new);
 
-        return new InMemoryUserDetailsManager(groupAdmin, groupOrganizer);
+            return User.withUsername(appUser.getUsername())
+                .password(appUser.getPassword()) 
+                .roles(roleNames)
+                .build();
+        };
     }
 
-    /**
-     * Delegating password encoder with sensible defaults.
-     * For our simple in-memory users, we just encode whatever password
-     * is provided (dev/test only). For production, replace this with a
-     * stronger, well-configured encoder.
-     */
     @Bean
     PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
