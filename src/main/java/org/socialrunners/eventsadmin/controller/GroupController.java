@@ -33,6 +33,10 @@ public class GroupController {
             @RequestParam(defaultValue = "name") String sortBy,
             @RequestParam(defaultValue = "asc") String direction) {
 
+        if (!sortBy.matches("name|city|country|active")) {
+            return ResponseEntity.badRequest().build();
+        }
+
         Sort sort = direction.equalsIgnoreCase("desc")
                 ? Sort.by(sortBy).descending()
                 : Sort.by(sortBy).ascending();
@@ -42,6 +46,7 @@ public class GroupController {
 
         return ResponseEntity.ok(groupsPage);
     }
+
 
     @PreAuthorize("hasRole('GROUP_ADMIN')")
     @PostMapping
@@ -68,14 +73,22 @@ public class GroupController {
     @PreAuthorize("hasRole('GROUP_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<Group> updateGroup(@PathVariable long id,
-                                             @Valid @RequestBody Group updatedGroup) {
+                                            @Valid @RequestBody Group updatedGroup) {
         return groupRepository.findById(id)
-                .map(existing -> {
-                    existing.setName(updatedGroup.getName());
-                    Group saved = groupRepository.save(existing);
-                    return ResponseEntity.ok(saved);
-                })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+            .map(existing -> {
+                existing.setName(updatedGroup.getName());
+                existing.setDescription(updatedGroup.getDescription());
+                existing.setCity(updatedGroup.getCity());
+                existing.setCountry(updatedGroup.getCountry());
+                existing.setActive(updatedGroup.isActive());
+                existing.setEmail(updatedGroup.getEmail());
+                existing.setContactHandle(updatedGroup.getContactHandle());
+
+                Group saved = groupRepository.save(existing);
+                return ResponseEntity.ok(saved);
+            })
+            .orElseGet(() -> ResponseEntity.notFound().build());
     }
+
 
 }
